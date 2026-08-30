@@ -12,17 +12,24 @@
 /* ---------------------------------------
    Subrutina: ajustarRangoByte a traducir. Parámetros por registro
 --------------------------------------- */
-int  ajustarRangoByte(int valor) {
+__declspec(naked) int ajustarRangoByte(int valor){
+    __asm{
+        push ebx // guardar EBX original
 
-    if (valor > 255) {
-        valor = valor - 256;
+        cmp ebx,255 // comparar valor con 255
+        jle revisarMenor // si el valor es <= 255 revisar limite inferior
+        sub ebx,256 // valor = valor - 256
+
+    revisarMenor:
+        cmp ebx,0 // comparar valor con 0
+        jge finAjuste // si el valor es >= 0 terminar ajuste
+        add ebx,256 // valor = valor + 256
+
+    finAjuste:
+        mov eax,ebx // retornar resultado en EAX
+        pop ebx // restaurar EBX
+        ret // retornar al llamador
     }
-
-    if (valor < 0) {
-        valor = valor + 256;
-    }
-
-    return valor;
 }
 
 
@@ -72,11 +79,11 @@ __declspec(naked) int transformarBytesClave(unsigned char *buffer,
         "mov  [ebp-16], eax          \n\t"   /* temp = eax                         */
 
         "fin_if:                     \n\t"
-        "mov  eax, [ebp-16]          \n\t"   /* eax = temp                         */
-        "push eax                    \n\t"   /* parámetro de ajustarRangoByte (pila) */
-        "call ajustarRangoByte       \n\t"   /* llamada a subrutina                */
-        "add  esp, 4                 \n\t"   /* limpiar parámetro empujado (cdecl) */
-        "mov  [ebp-16], eax          \n\t"   /* temp = valor de retorno (en eax)   */
+        "push ebx                    \n\t"   /* guardar EBX original                     */
+        "mov  ebx, [ebp-16]          \n\t"   /* pasar temp por registro EBX              */
+        "call ajustarRangoByte       \n\t"   /* llamar funcion con parametro por registro */
+        "mov  [ebp-16], eax          \n\t"   /* temp = resultado retornado en EAX        */
+        "pop  ebx                    \n\t"   /* restaurar EBX original                   */
 
         "mov  eax, [ebp-4]           \n\t"   /* eax = i                            */
         "mov  ecx, [ebp+8]           \n\t"   /* ecx = buffer                       */
